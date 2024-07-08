@@ -5,11 +5,20 @@ services:
     build: ./frontend
     environment:
       - REACT_APP_API_URL=https://timon.buzz/api
+    labels:
+    - "traefik.enable=true"
+    - "traefik.http.routers.frontend.rule=Host(`timon.buzz`) && PathPrefix(`/`)"
+    - "traefik.http.services.frontend.loadbalancer.server.port=3000"
 
   backend:
     build: ./backend
     environment:
       - DATABASE_URL=postgresql://user:password@db:5432/dbname
+
+    labels:
+    - "traefik.enable=true"
+    - "traefik.http.routers.backend.rule=Host(`timon.buzz`) && (PathPrefix(`/api`) || PathPrefix(`/docs`) || PathPrefix(`/redoc`))"
+    - "traefik.http.services.backend.loadbalancer.server.port=8000"
 
   db:
     image: postgres:13
@@ -24,6 +33,11 @@ services:
     image: adminer
     ports:
       - "8080:8080"
+    
+    labels:
+    - "traefik.enable=true"
+    - "traefik.http.routers.adminer.rule=Host(`db.timon.buzz`)"
+    - "traefik.http.services.adminer.loadbalancer.server.port=8080"
 
   proxy-manager:
     image: 'jc21/nginx-proxy-manager:latest'
@@ -33,7 +47,13 @@ services:
     volumes:
       - ./data:/data
       - ./letsencrypt:/etc/letsencrypt
-
+  traefik:
+    labels:
+    - "traefik.enable=true"
+    - "traefik.http.routers.dashboard.rule=Host(`proxy.timon.buzz`)"
+    - "traefik.http.services.dashboard.loadbalancer.server.port=8080"
+    - "traefik.http.routers.dashboard.service=api@internal"
+  
   nginx:
     image: nginx:latest
     ports:
